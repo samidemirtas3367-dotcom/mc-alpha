@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ALPHA ARCADE - FINAL</title>
+    <style>
+        body { margin: 0; background: #050505; color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; touch-action: none; user-select: none; }
+        #gameWrapper { position: relative; width: 100vw; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        canvas { background: #111; box-shadow: 0 0 20px rgba(0,255,242,0.2); max-width: 100%; max-height: 100%; image-rendering: pixelated; }
+        
+        /* MENÜ */
+        #menu { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 200; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        h1 { color: #00fff2; letter-spacing: 5px; text-shadow: 0 0 10px #00fff2; font-size: 3vw; margin-bottom: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+        .card { background: linear-gradient(45deg, #222, #333); padding: 15px; border: 2px solid #444; border-radius: 15px; text-align: center; cursor: pointer; transition: 0.3s; width: 130px; }
+        .card:hover { border-color: #00fff2; transform: scale(1.05); }
+        .card div { font-size: 35px; margin-bottom: 5px; }
+
+        /* ARAYÜZLER */
+        #uiLayer { position: absolute; top: 10px; left: 10px; font-size: 16px; font-weight: bold; color: white; z-index: 50; text-shadow: 1px 1px 0 #000; display: none; pointer-events: none; }
+        
+        /* GTA ÖZEL UI */
+        #bustedScreen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,100,0.9); z-index: 300; display: none; flex-direction: column; align-items: center; justify-content: center; color: red; font-size: 40px; font-weight: bold; letter-spacing: 5px; text-shadow: 0 0 20px red; }
+        #wantedTimer { position: absolute; top: 20%; left: 50%; transform: translate(-50%, -50%); font-size: 24px; color: lime; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 10px; display: none; z-index: 55; border: 2px solid lime; }
+        #hpBar { position: absolute; top: 10px; right: 10px; width: 150px; height: 20px; background: #333; border: 2px solid white; display: none; z-index: 55; }
+        #hpFill { width: 100%; height: 100%; background: lime; transition: width 0.2s; }
+        #gtaSlots { position: absolute; bottom: 180px; left: 50%; transform: translateX(-50%); display: none; gap: 10px; z-index: 50; }
+        @media (min-width: 800px) { #gtaSlots { bottom: 20px; } }
+        .slot { width: 50px; height: 50px; background: rgba(0,0,0,0.7); border: 2px solid #555; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #555; border-radius: 8px; font-weight: bold; }
+        .slot.active { border-color: #00fff2; color: white; background: rgba(0, 255, 242, 0.2); transform: scale(1.1); box-shadow: 0 0 10px #00fff2; }
+
+        /* MINECRAFT ENVANTER */
+        #mcInv { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.9); border: 2px solid #aaa; padding: 20px; display: none; grid-template-columns: repeat(5, 1fr); gap: 10px; z-index: 150; border-radius: 10px; }
+        .inv-slot { width: 50px; height: 50px; background: #333; border: 2px solid #555; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; color: white; font-size: 10px; }
+        .inv-slot.selected { border-color: yellow; background: #444; }
+        .inv-icon { width: 20px; height: 20px; margin-bottom: 5px; }
+
+        /* MOBİL KONTROLLER */
+        #mobileControls { display: none; position: absolute; bottom: 0; left: 0; width: 100%; height: 160px; pointer-events: none; z-index: 100; }
+        @media (hover: none) and (pointer: coarse) {
+            #mobileControls { display: flex; justify-content: space-between; }
+            canvas { height: calc(100vh - 160px) !important; width: 100vw !important; }
+        }
+        .d-pad { position: relative; width: 140px; height: 140px; pointer-events: auto; margin-left: 20px; margin-bottom: 10px; }
+        .btn { position: absolute; background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3); border-radius: 10px; width: 45px; height: 45px; display: flex; align-items: center; justify-content: center; font-size: 20px; color: rgba(255,255,255,0.7); }
+        .btn:active { background: #00fff2; color: black; }
+        #btnL { top: 47px; left: 0; } #btnR { top: 47px; right: 0; }
+        #btnU { top: 0; left: 47px; } #btnD { bottom: 0; left: 47px; }
+
+        .action-grp { display: flex; gap: 15px; align-items: center; pointer-events: auto; margin-right: 20px; margin-bottom: 20px; }
+        .act-btn { width: 70px; height: 70px; border-radius: 50%; border: 3px solid #ff00ff; background: rgba(255,0,255,0.1); color: white; font-weight: bold; font-size: 14px; display: flex; align-items: center; justify-content: center; }
+        .act-btn:active { background: #ff00ff; }
+        .sub-btn { width: 50px; height: 50px; border-radius: 50%; border: 2px solid orange; background: rgba(255,165,0,0.2); color: white; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        
+        .back-btn { position: absolute; top: 10px; right: 10px; background: red; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; z-index: 210; font-weight: bold; display: none; }
+    </style>
+</head>
+<body>
+
+<div id="gameWrapper">
+    <button id="exitBtn" class="back-btn" onclick="location.reload()">MENÜ</button>
+    <div id="uiLayer"></div>
+    <div id="wantedTimer">Gizleniyor: 7.0s</div>
+    <div id="hpBar"><div id="hpFill"></div></div>
+    
+    <div id="bustedScreen">
+        <div>TUTUKLANDIN!</div>
+        <div style="font-size: 20px; color: white; margin-top: 20px;">Hastaneye götürülüyorsun...</div>
+    </div>
+
+    <div id="gtaSlots">
+        <div class="slot active">👊</div>
+        <div class="slot">🔫</div>
+        <div class="slot">💣</div>
+    </div>
+
+    <div id="mcInv"></div>
+
+    <div id="menu">
+        <h1>ALPHA ARCADE FINAL</h1>
+        <div class="grid">
+            <div class="card" onclick="start('GD')"><div>🟦</div><h3>GD ALPHA</h3></div>
+            <div class="card" onclick="start('CITY')"><div>🏙️</div><h3>GTA ALPHA</h3></div>
+            <div class="card" onclick="start('CRAFT')"><div>⛏️</div><h3>MINECRAFT</h3></div>
+            <div class="card" onclick="start('DRIFT')"><div>🏎️</div><h3>DRIFT</h3></div>
+            <div class="card" onclick="start('SNAKE')"><div>🐍</div><h3>SNAKE</h3></div>
+        </div>
+        <p style="margin-top:20px; color:#aaa; font-size:12px;">GD: Blok hatası düzeltildi | GTA: Tutuklanma eklendi</p>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <div id="mobileControls">
+        <div class="d-pad">
+            <div class="btn" id="btnU">⬆️</div>
+            <div class="btn" id="btnL">⬅️</div>
+            <div class="btn" id="btnR">➡️</div>
+            <div class="btn" id="btnD">⬇️</div>
+        </div>
+        <div class="action-grp">
+            <div class="sub-btn" id="btnSub">🎒</div>
+            <div class="act-btn" id="btnA">EYLEM</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    function resize() {
+        canvas.width = window.innerWidth > 800 ? 800 : window.innerWidth;
+        canvas.height = window.innerHeight > 400 ? 400 : window.innerHeight * 0.6;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // --- INPUT ---
+    let keys = { u:0, d:0, l:0, r:0, a:0 };
+    let mouse = { x:0, y:0, click:false, rClick:false };
+
+    window.onkeydown = e => {
+        if(e.code=='KeyW'||e.code=='ArrowUp') keys.u=1;
+        if(e.code=='KeyS'||e.code=='ArrowDown') keys.d=1;
+        if(e.code=='KeyA'||e.code=='ArrowLeft') keys.l=1;
+        if(e.code=='KeyD'||e.code=='ArrowRight') keys.r=1;
+        if(e.code=='Space') keys.a=1;
+        if(e.code=='KeyE') handleSubAction();
+        if(e.key=='1') setGtaSlot(0);
+        if(e.key=='2') setGtaSlot(1);
+        if(e.key=='3') setGtaSlot(2);
+    };
+    window.onkeyup = e => {
+        if(e.code=='KeyW'||e.code=='ArrowUp') keys.u=0;
+        if(e.code=='KeyS'||e.code=='ArrowDown') keys.d=0;
+        if(e.code=='KeyA'||e.code=='ArrowLeft') keys.l=0;
+        if(e.code=='KeyD'||e.code=='ArrowRight') keys.r=0;
+        if(e.code=='Space') keys.a=0;
+    };
+
+    canvas.onmousedown = e => {
+        updateMouse(e);
+        if(e.button===0) mouse.click=true;
+        if(e.button===2) mouse.rClick=true;
+    };
+    canvas.onmouseup = () => { mouse.click=false; mouse.rClick=false; };
+    canvas.onmousemove = e => updateMouse(e);
+    canvas.oncontextmenu = e => e.preventDefault();
+
+    function updateMouse(e) {
+        const r = canvas.getBoundingClientRect();
+        mouse.x = e.clientX - r.left;
+        mouse.y = e.clientY - r.top;
+    }
+
+    const touch = (id, k) => {
+        const el = document.getElementById(id);
+        el.addEventListener('touchstart', (e)=>{e.preventDefault(); keys[k]=1;});
+        el.addEventListener('touchend', (e)=>{e.preventDefault(); keys[k]=0;});
+    };
+    touch('btnU','u'); touch('btnD','d'); touch('btnL','l'); touch('btnR','r'); touch('btnA','a');
+    document.getElementById('btnSub').addEventListener('touchstart', (e) => { e.preventDefault(); handleSubAction(); });
+
+    function handleSubAction() {
+        if(mode === 'CRAFT') toggleInv();
+        if(mode === 'CITY') { city.slot = (city.slot + 1) % 3; setGtaSlot(city.slot); }
+    }
+
+    // --- GAME VARS ---
+    let mode = null;
+    let isRunning = false;
+    let frameCount = 0;
+    
+    let ui = document.getElementById('uiLayer');
+    let timerUI = document.getElementById('wantedTimer');
+    let hpBar = document.getElementById('hpBar');
+    let hpFill = document.getElementById('hpFill');
+    let gtaUI = document.getElementById('gtaSlots');
+    let mcUI = document.getElementById('mcInv');
+    let bustedScreen = document.getElementById('bustedScreen');
+
+    let gd = {y:300, dy:0, obs:[], score:0, parts:[], grounded:false};
+    let city = {x:400, y:300, camX:0, camY:0, npcs:[], buildings:[], bullets:[], slot:0, cooldown:0, facing:1, wanted:0, hideTimer:0, isHidden:false, hp:100};
+    let drift = {x:400, bots:[], score:0};
+    let snake = {body:[], dir:{x:1,y:0}, food:{}};
+    let craft = {player:{x:100,y:0,dy:0,w:20,h:40}, blocks:[], camX:0, inv:{1:0,2:0,3:0,4:0,5:0,6:0}, sel:1, showInv:false};
+    const MC_BLOCKS = {1:{c:"#8B4513",n:"Toprak"}, 2:{c:"#777",n:"Taş"}, 3:{c:"#855E42",n:"Odun"}, 4:{c:"#228B22",n:"Yaprak"}, 5:{c:"#000",n:"Kömür"}, 6:{c:"#333",n:"Bedrock"}};
+
+    function start(m) {
+        mode = m; isRunning = true;
+        document.getElementById('menu').style.display='none';
+        document.getElementById('exitBtn').style.display='block';
+        ui.style.display='block';
+        gtaUI.style.display=(m==='CITY'?'flex':'none');
+        hpBar.style.display=(m==='CITY'?'block':'none');
+        mcUI.style.display='none';
+        timerUI.style.display='none';
+        bustedScreen.style.display='none';
+
+        if(m==='GD') { gd.y=300; gd.dy=0; gd.grounded=true; gd.obs=[]; gd.parts=[]; gd.score=0; }
+        if(m==='CITY') initCity();
+        if(m==='DRIFT') { drift.x=canvas.width/2; drift.bots=[]; drift.score=0; }
+        if(m==='SNAKE') { snake.body=[{x:5,y:5},{x:4,y:5}]; snake.dir={x:1,y:0}; spawnSnakeFood(); }
+        if(m==='CRAFT') initCraft();
+        loop();
+    }
+
+    function loop() {
+        if(!isRunning) return;
+        frameCount++;
+        ctx.setTransform(1,0,0,1,0,0);
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        if(mode==='GD') updateGD();
+        if(mode==='CITY') updateCity();
+        if(mode==='DRIFT') updateDrift();
+        if(mode==='SNAKE') updateSnake();
+        if(mode==='CRAFT') updateCraft();
+        requestAnimationFrame(loop);
+    }
+
+    // --- 1. GD ALPHA (FIZIK MOTORU YENİLENDİ) ---
+    function updateGD() {
+        ctx.fillStyle = "#001f3f"; ctx.fillRect(0,0,canvas.width,canvas.height);
+        
+        let FLOOR = 270;
+        
+        // Yerçekimi ve Zıplama
+        if((keys.u || keys.a) && gd.grounded) {
+            gd.dy = -12; // Zıplama gücü
+            gd.grounded = false;
+        }
+        
+        gd.dy += 0.8; // Yerçekimi
+        gd.y += gd.dy;
+
+        // Zemin Kontrolü (Sıkışmayı önler)
+        if(gd.y >= FLOOR) {
+            gd.y = FLOOR;
+            gd.dy = 0;
+            gd.grounded = true;
+        }
+
+        // Trail Efekti
+        if(frameCount % 2 === 0) gd.parts.push({x:100, y:gd.y, a:1});
+        for(let i=gd.parts.length-1; i>=0; i--) {
+            let p = gd.parts[i]; p.x -= 6; p.a -= 0.05;
+            ctx.fillStyle = `rgba(0,255,242,${p.a})`; ctx.fillRect(p.x, p.y, 30, 30);
+            if(p.a <= 0) gd.parts.splice(i,1);
+        }
+
+        // Oyuncu
+        ctx.fillStyle = "#fff"; ctx.fillRect(100, gd.y, 30, 30);
+        ctx.strokeStyle = "#00fff2"; ctx.lineWidth = 3; ctx.strokeRect(100, gd.y, 30, 30);
+        
+        // Engeller
+        if(Math.random()<0.015) gd.obs.push(canvas.width);
+        gd.obs.forEach((o,i)=>{ 
+            gd.obs[i] -= 7; // Hız
+            ctx.fillStyle="#ff0055"; ctx.fillRect(o, FLOOR, 30, 30);
+            
+            // Hitbox Toleransı (Daha küçük hitbox = Daha az takılma)
+            let hitboxPadding = 5;
+            if(o < 100 + 30 - hitboxPadding && o + 30 > 100 + hitboxPadding &&
+               gd.y + 30 > FLOOR + hitboxPadding) {
+                 start('GD'); // Çarpışma
+            }
+            if(o < -30) { gd.obs.splice(i,1); gd.score++; }
+        });
+        
+        ctx.fillStyle="#fff"; ctx.fillRect(0, FLOOR+30, canvas.width, 20); // Zemin çizgisi
+        ui.innerText = "Skor: " + gd.score;
+    }
+
+    // --- 2. GTA CITY (TUTUKLANMA EKLENDİ) ---
+    function initCity() {
+        city.x=400; city.y=300; city.wanted=0; city.hideTimer=0; city.npcs=[]; city.buildings=[]; city.hp=100;
+        setGtaSlot(0);
+        for(let i=0; i<15; i++) city.buildings.push({x: i*200 + 50, y: Math.random()<0.5?50:450, w:150, h:150, c:"#444"});
+        spawnNPCs(10, 'civ'); spawnNPCs(3, 'cop');
+    }
+    function spawnNPCs(c, t) { for(let i=0; i<c; i++) city.npcs.push({x:Math.random()*2000, y:Math.random()*1000, type:t, hp:(t==='cop'?5:3)}); }
+    function setGtaSlot(n) { city.slot=n; document.querySelectorAll('.slot').forEach((e,i)=>e.classList.toggle('active', i===n)); }
+    
+    function busted() {
+        isRunning = false;
+        bustedScreen.style.display = 'flex';
+        setTimeout(() => {
+            bustedScreen.style.display = 'none';
+            initCity(); // Reset
+            start('CITY');
+        }, 3000);
+    }
+
+    function updateCity() {
+        if(keys.l) { city.x-=4; city.facing=-1; } if(keys.r) { city.x+=4; city.facing=1; }
+        if(keys.u) city.y-=4; if(keys.d) city.y+=4;
+
+        city.camX=city.x-canvas.width/2; city.camY=city.y-canvas.height/2;
+        ctx.translate(-city.camX,-city.camY);
+        ctx.fillStyle="#222"; ctx.fillRect(0,0,3000,1500); // Harita
+
+        // Mermiler
+        city.bullets.forEach((b,i)=>{
+            b.x+=b.vx; b.y+=b.vy; ctx.fillStyle=b.owner==='player'?"yellow":"red"; ctx.fillRect(b.x,b.y,5,5);
+            if(Math.abs(b.x-city.x)>800) city.bullets.splice(i,1);
+            
+            // Oyuncuya isabet (Polis mermisi)
+            if(b.owner === 'cop') {
+                if(Math.hypot(b.x-city.x, b.y-city.y) < 15) {
+                    city.hp -= 10;
+                    city.bullets.splice(i,1);
+                    if(city.hp <= 0) busted();
+                }
+            }
+        });
+
+        // NPC
+        city.npcs.forEach((n,i)=>{
+            if(n.type==='cop' && city.wanted>0) {
+                let dx=city.x-n.x, dy=city.y-n.y, d=Math.hypot(dx,dy);
+                if(d>0 && !city.isHidden) { n.x+=(dx/d)*2.5; n.y+=(dy/d)*2.5; }
+                // Polis Ateşi
+                if(d < 300 && d > 50 && Math.random() < 0.02 && !city.isHidden) {
+                    let angle = Math.atan2(dy, dx);
+                    city.bullets.push({x:n.x, y:n.y, vx:Math.cos(angle)*8, vy:Math.sin(angle)*8, owner:'cop'});
+                }
+                ctx.fillStyle=(frameCount%20<10)?"blue":"red";
+            } else ctx.fillStyle=n.type==='cop'?"blue":"yellow";
+            
+            ctx.beginPath(); ctx.arc(n.x, n.y, 10, 0, 7); ctx.fill();
+
+            // NPC Vurulma
+            city.bullets.forEach((b,bi)=>{
+                if(b.owner === 'player' && Math.hypot(b.x-n.x, b.y-n.y)<15) {
+                    n.hp-=(city.slot===2?2:1); city.bullets.splice(bi,1);
+                    if(n.hp<=0) {
+                        city.npcs.splice(i,1); city.wanted=1;
+                        if(n.type==='cop') spawnNPCs(1,'cop');
+                    }
+                }
+            });
+        });
+
+        // Oyuncu & Silah
+        ctx.fillStyle="#00fff2"; ctx.beginPath(); ctx.arc(city.x, city.y, 10, 0, 7); ctx.fill();
+        if(city.slot>0) { ctx.fillStyle="black"; ctx.fillRect(city.x+(city.facing*5), city.y-2, city.facing*(city.slot===2?20:10), 4); }
+
+        // Oyuncu Ateşi
+        if(keys.a && city.slot>0 && city.cooldown<=0) {
+            city.bullets.push({x:city.x, y:city.y, vx:city.facing*(city.slot===2?15:10), vy:0, owner:'player'});
+            city.cooldown=(city.slot===2?5:20); city.wanted=1; city.hideTimer=0;
+        }
+        if(city.cooldown>0) city.cooldown--;
+
+        // Binalar & Saklanma
+        city.isHidden=false;
+        city.buildings.forEach(b=>{
+            ctx.fillStyle=b.c; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.lineWidth=5; ctx.strokeStyle="#333"; ctx.strokeRect(b.x,b.y,b.w,b.h);
+            if(city.x>b.x && city.x<b.x+b.w && city.y>b.y && city.y<b.y+b.h) {
+                city.isHidden=true; ctx.globalAlpha=0.5; ctx.fillStyle=b.c; ctx.fillRect(b.x,b.y,b.w,b.h); ctx.globalAlpha=1.0;
+            }
+        });
+
+        if(city.wanted && city.isHidden) {
+            city.hideTimer++; timerUI.style.display='block'; timerUI.innerText=`Gizleniyor: ${(7-(city.hideTimer/60)).toFixed(1)}s`;
+            if(city.hideTimer>420) { city.wanted=0; city.hideTimer=0; timerUI.innerText="ARANMA BİTTİ!"; setTimeout(()=>timerUI.style.display='none',2000); }
+        } else { if(city.wanted) timerUI.style.display='none'; city.hideTimer=0; }
+
+        ui.innerText = city.wanted ? "⚠️ ARANIYORSUN" : "Şehir Güvenli";
+        ui.style.color = city.wanted ? "red" : "white";
+        hpFill.style.width = city.hp + "%";
+        hpFill.style.background = city.hp < 30 ? "red" : "lime";
+    }
+
+    // --- OTHER GAMES ---
+    function initCraft() {
+        craft.blocks=[]; craft.player.y=50; craft.player.dy=0;
+        for(let x=0; x<100; x++) {
+            let h=10+Math.floor(Math.random()*3);
+            if(x>5 && x<95 && Math.random()<0.08) { craft.blocks.push({x:x,y:h-1,t:3},{x:x,y:h-2,t:3},{x:x,y:h-3,t:4},{x:x-1,y:h-3,t:4},{x:x+1,y:h-3,t:4}); }
+            for(let y=0; y<20; y++) {
+                let ty=1, ay=h+y; if(y>4)ty=2; if(y>5&&Math.random()<0.1)ty=5; if(y===19)ty=6;
+                craft.blocks.push({x:x,y:ay,t:ty});
+            }
+        }
+        updateInv();
+    }
+    function toggleInv() { craft.showInv=!craft.showInv; mcUI.style.display=craft.showInv?'grid':'none'; updateInv(); }
+    function updateInv() { mcUI.innerHTML=""; Object.keys(craft.inv).forEach(k=>{let id=parseInt(k);let d=document.createElement('div');d.className="inv-slot "+(craft.sel===id?"selected":"");d.innerHTML=`<div class="inv-icon" style="background:${MC_BLOCKS[id].c}"></div>${craft.inv[id]}`;d.onclick=()=>{craft.sel=id;updateInv();};mcUI.appendChild(d);}); }
+    function updateCraft() {
+        let T=30; craft.player.dy+=0.5; let nx=craft.player.x+(keys.r-keys.l)*4, ny=craft.player.y+craft.player.dy;
+        if(ny>1000){ny=0;craft.player.dy=0;} 
+        let pBx=Math.floor((craft.player.x+10)/T), pBy=Math.floor((ny+40)/T);
+        let gB=craft.blocks.find(b=>b.x===pBx && b.y===pBy);
+        if(gB) { if(craft.player.dy>0) { ny=(pBy*T)-40; craft.player.dy=0; if(keys.u)craft.player.dy=-10; } }
+        craft.player.x=nx; craft.player.y=ny;
+        craft.camX=craft.player.x-canvas.width/2; ctx.translate(-craft.camX,0);
+        ctx.fillStyle="#87CEEB"; ctx.fillRect(craft.camX,0,canvas.width,canvas.height);
+        craft.blocks.forEach(b=>{ctx.fillStyle=MC_BLOCKS[b.t].c; ctx.fillRect(b.x*T,b.y*T,T,T); if(b.t===6){ctx.fillStyle="black";ctx.fillText("#",b.x*T+10,b.y*T+20);}});
+        ctx.fillStyle="blue"; ctx.fillRect(craft.player.x,craft.player.y,20,40);
+        if((mouse.click||keys.a)&&!craft.showInv){
+            let mx=mouse.x+craft.camX, my=mouse.y, bx=Math.floor(mx/T), by=Math.floor(my/T);
+            let idx=craft.blocks.findIndex(b=>b.x===bx&&b.y===by);
+            if(idx!==-1){ let t=craft.blocks[idx].t; if(t!==6){craft.blocks.splice(idx,1);craft.inv[t]++;mouse.click=false;keys.a=0;updateInv();} }
+            else if(mouse.rClick||(keys.a&&idx===-1)){ if(craft.inv[craft.sel]>0){craft.blocks.push({x:bx,y:by,t:craft.sel});craft.inv[craft.sel]--;mouse.rClick=false;keys.a=0;updateInv();} }
+        }
+        ui.innerText="Seçili: "+MC_BLOCKS[craft.sel].n;
+    }
+
+    function updateDrift(){ ctx.fillStyle="#222"; ctx.fillRect(0,0,canvas.width,canvas.height); if(Math.random()<0.02)drift.bots.push({x:Math.random()*(canvas.width-100)+50,y:-100,s:Math.random()*2+2}); drift.bots.forEach((b,i)=>{b.y+=6-b.s;ctx.fillStyle="orange";ctx.fillRect(b.x,b.y,40,70);if(b.y>canvas.height){drift.bots.splice(i,1);drift.score++;}if(Math.abs(drift.x-b.x)<35&&Math.abs(250-b.y)<60)start('DRIFT');}); if(keys.l)drift.x-=5;if(keys.r)drift.x+=5; ctx.fillStyle="#00fff2"; ctx.fillRect(drift.x,250,40,70); ui.innerText="Geçilen: "+drift.score; }
+    function spawnSnakeFood(){ let c=Math.floor(canvas.width/20),r=Math.floor(canvas.height/20); snake.food={x:Math.floor(Math.random()*(c-2))+1,y:Math.floor(Math.random()*(r-2))+1}; }
+    function updateSnake(){
+        if(frameCount%8===0){
+            if(keys.l&&snake.dir.x===0)snake.dir={x:-1,y:0}; if(keys.r&&snake.dir.x===0)snake.dir={x:1,y:0}; if(keys.u&&snake.dir.y===0)snake.dir={x:0,y:-1}; if(keys.d&&snake.dir.y===0)snake.dir={x:0,y:1};
+            let h={x:snake.body[0].x+snake.dir.x,y:snake.body[0].y+snake.dir.y};
+            if(h.x<0||h.x>=Math.floor(canvas.width/20)||h.y<0||h.y>=Math.floor(canvas.height/20)) {start('SNAKE');return;}
+            for(let b of snake.body) if(h.x===b.x&&h.y===b.y) {start('SNAKE');return;}
+            snake.body.unshift(h); if(h.x===snake.food.x&&h.y===snake.food.y)spawnSnakeFood(); else snake.body.pop();
+        }
+        ctx.fillStyle="#000"; ctx.fillRect(0,0,canvas.width,canvas.height); snake.body.forEach(b=>{ctx.fillStyle="lime";ctx.fillRect(b.x*20,b.y*20,19,19);}); ctx.fillStyle="red"; ctx.fillRect(snake.food.x*20,snake.food.y*20,19,19); ui.innerText="Yılan: "+snake.body.length;
+    }
+</script>
+</body>
+</html>
